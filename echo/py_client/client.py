@@ -20,7 +20,7 @@ class Payload(Structure):
 
 
 def main():
-    server_addr = ('localhost', 2300)
+    server_addr = ('10.0.0.18', 2300)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
