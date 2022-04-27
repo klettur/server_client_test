@@ -10,11 +10,13 @@
 
 #pragma pack(1)
 
+#include "rp.h"
+
 typedef struct payload_t {
-    uint32_t data1;
-    uint32_t data2;
-    uint32_t data3;
-    uint32_t data4;
+    float data1;
+    float data2;
+    float data3;
+    float data4;
 } payload;
 
 #pragma pack()
@@ -76,6 +78,12 @@ int main()
     struct sockaddr_in client;
     int clilen = sizeof(client);
 
+    // Initialization of API
+    if (rp_Init() != RP_OK) {
+        fprintf(stderr, "Red Pitaya API init failed!\n");
+        return EXIT_FAILURE;
+    }
+
     ssock = createSocket(PORT);
     printf("Server listening on port %d\n", PORT);
 
@@ -105,7 +113,8 @@ int main()
         {
             payload p;
             p.data1 = i;
-            p.data2 = i+1;
+            // p.data2 = i+1;
+            rp_AIpinGetValue(0, &p.data2);
             p.data3 = i+2;
             p.data4 = i+3;
 
@@ -115,6 +124,7 @@ int main()
         printf("Closing connection to client\n");
         printf("----------------------------\n");
         closeSocket(csock);
+        rp_Release();
     }
 
     closeSocket(ssock);

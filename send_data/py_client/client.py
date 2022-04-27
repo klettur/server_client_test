@@ -15,30 +15,37 @@ from ctypes import *
 
 """ This class defines a C-like struct """
 class Payload(Structure):
-    _fields_ = [("data1", c_uint32),
-                ("data2", c_uint32),
-                ("data3", c_uint32),
-                ("data4", c_uint32)]
+    _fields_ = [("data1", c_float),
+                ("data2", c_float),
+                ("data3", c_float),
+                ("data4", c_float)]
 
 
 def main():
-    server_addr = ('localhost', 2300)
+    server_addr = ('192.168.1.3', 2300)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    bytecount = 0
+    errorcount = 0
 
     try:
         s.connect(server_addr)
         print("Connected to {:s}".format(repr(server_addr)))
-
         i = 0
         start = time.time()
-        while i <= 1000:
-            buff = s.recv(sizeof(Payload))
-            payload_in = Payload.from_buffer_copy(buff)
+        while i <= 10000-2:
+            buff = s.recv(16) # 16 = sizeof(Payload)
+
+            try:
+                payload_in = Payload.from_buffer_copy(buff)
+                bytecount = bytecount + 16
+            except ValueError as ve:
+                errorcount = errorcount + 1
             #print("Received D1={:d}, D2={:d}, D3={:d}, D4={:d},".format(payload_in.data1,
                                                                #payload_in.data2,
                                                                #payload_in.data3,
                                                                #payload_in.data4))
             i = payload_in.data1
+            #print(i)
 
         '''
         for i in range(5):
@@ -65,8 +72,8 @@ def main():
     finally:
         end = time.time()
         elapsed = end-start
-        print("Time for 1000 16 Byte packages: ")
-        print(elapsed)
+        print("Time for ", bytecount, " Byte: ", elapsed)
+        print("Errorcount: ", errorcount)
         print("Closing socket")
         s.close()
 
