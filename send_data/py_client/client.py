@@ -15,10 +15,11 @@ from ctypes import *
 
 """ This class defines a C-like struct """
 class Payload(Structure):
-    _fields_ = [("data1", c_float),
-                ("data2", c_float),
-                ("data3", c_float),
-                ("data4", c_float)]
+    _fields_ = [("id", c_uint),
+                ("input_0", c_float),
+                ("input_1", c_float),
+                ("input_2", c_float)
+                ("input_2", c_float)]
 
 
 def main():
@@ -32,12 +33,15 @@ def main():
         print("Connected to {:s}".format(repr(server_addr)))
         i = 0
         start = time.time()
-        while i <= 10000-2:
-            buff = s.recv(16) # 16 = sizeof(Payload)
+        while i < 1000:
+            buff = s.recv(sizeof(Payload))
+            #print("test1")
 
             try:
+            #print("test2")
                 payload_in = Payload.from_buffer_copy(buff)
-                bytecount = bytecount + 16
+                bytecount = bytecount + sizeof(Payload)
+                # print("Value: {:f},".format(payload_in.data2))
             except ValueError as ve:
                 errorcount = errorcount + 1
             #print("Received D1={:d}, D2={:d}, D3={:d}, D4={:d},".format(payload_in.data1,

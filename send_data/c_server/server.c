@@ -13,10 +13,11 @@
 #include "rp.h"
 
 typedef struct payload_t {
-    float data1;
-    float data2;
-    float data3;
-    float data4;
+    float id;
+    float input0;
+    float input1;
+    float input2;
+    float input3;
 } payload;
 
 #pragma pack()
@@ -112,11 +113,11 @@ int main()
         for(int i=0; i<1000; i++)
         {
             payload p;
-            p.data1 = i;
-            // p.data2 = i+1;
-            rp_AIpinGetValue(0, &p.data2);
-            p.data3 = i+2;
-            p.data4 = i+3;
+            p.id = i;
+            rp_AIpinGetValue(0, &p.input0);
+            rp_AIpinGetValue(1, &p.input1);
+            rp_AIpinGetValue(2, &p.input2);
+            rp_AIpinGetValue(3, &p.input3);
 
             sendMsg(csock, &p, sizeof(payload));
         }
