@@ -62,10 +62,12 @@ void sendMsg(int sock, void* msg, uint32_t msgsize)
 {
     if (write(sock, msg, msgsize) < 0)
     {
-        printf("Can't send message.\n");
-        closeSocket(sock);
-        exit(1);
+        // printf("Can't send message.\n");
+        // closeSocket(sock);
+        // exit(1);
+	return;
     }
+
     //printf("Message sent (%d bytes).\n", msgsize);
     return;
 }
@@ -77,18 +79,27 @@ float acquireFastInput()
 
     rp_AcqReset();
     rp_AcqSetDecimation(RP_DEC_8);
-    rp_AcqSetTriggerLevel(0.1); //Trig level is set in Volts while in SCPI
+    rp_AcqSetTriggerLevel(1, 0); //Trig level is set in Volts while in SCPI
     rp_AcqSetTriggerDelay(0);
 
     rp_AcqStart();
+    sleep(0.001);
 
-    sleep(0.001)
-
-    p_AcqGetOldestDataV(RP_CH_1, &buff_size, buff);
+    rp_AcqGetOldestDataV(RP_CH_1, &buff_size, buff);
     float value = buff[0];
     free(buff);
 
+    //printf("Value = %f\n", value);
     return value;
+}
+
+void startGenerator()
+{
+    rp_GenReset();
+    rp_GenFreq(RP_CH_1, 0.5);
+    rp_GenAmp(RP_CH_1, 1.0);
+    rp_GenWaveform(RP_CH_1, RP_WAVEFORM_SINE);
+    rp_GenOutEnable(RP_CH_1);
 }
 
 int main()
@@ -109,6 +120,8 @@ int main()
 
     ssock = createSocket(PORT);
     printf("Server listening on port %d\n", PORT);
+    
+    startGenerator();
 
     while (1)
     {
@@ -121,12 +134,13 @@ int main()
 
         printf("Accepted connection from %s\n", inet_ntoa(client.sin_addr));
         bzero(buff, BUFFSIZE);
-
+	int sent = 0;
         // for(int i=0; i<1000; i++)
         while(1)
         {
+	    sleep(0.00001);
             payload p;
-            p.id = i;
+            //p.id = i;
             //rp_AIpinGetValue(0, &p.input0);
             //rp_AIpinGetValue(1, &p.input1);
             //rp_AIpinGetValue(2, &p.input2);
@@ -134,13 +148,15 @@ int main()
             p.fast1 = acquireFastInput();
 
             sendMsg(csock, &p, sizeof(payload));
-        }
+            
+	}
 
         printf("Closing connection to client\n");
         printf("----------------------------\n");
         closeSocket(csock);
         rp_Release();
     }
+    rp_Release();
 
     closeSocket(ssock);
     printf("bye");
