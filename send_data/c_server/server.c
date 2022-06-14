@@ -18,6 +18,7 @@ typedef struct payload_t {
     float input1;
     float input2;
     float input3;
+    float fast1;
 } payload;
 
 #pragma pack()
@@ -69,6 +70,27 @@ void sendMsg(int sock, void* msg, uint32_t msgsize)
     return;
 }
 
+float acquireFastInput()
+{
+    uint32_t buff_size = 10;
+    float *buff = (float *)malloc(buff_size * sizeof(float));
+
+    rp_AcqReset();
+    rp_AcqSetDecimation(RP_DEC_8);
+    rp_AcqSetTriggerLevel(0.1); //Trig level is set in Volts while in SCPI
+    rp_AcqSetTriggerDelay(0);
+
+    rp_AcqStart();
+
+    sleep(0.001)
+
+    p_AcqGetOldestDataV(RP_CH_1, &buff_size, buff);
+    float value = buff[0];
+    free(buff);
+
+    return value;
+}
+
 int main()
 {
     int PORT = 2300;
@@ -99,25 +121,17 @@ int main()
 
         printf("Accepted connection from %s\n", inet_ntoa(client.sin_addr));
         bzero(buff, BUFFSIZE);
-        /*
-        while ((nread=read(csock, buff, BUFFSIZE)) > 0)
-        {
-            printf("\nReceived %d bytes\n", nread);
-            payload *p = (payload*) buff;
-            printf("Received contents: id=%d, counter=%d, temp=%f\n",
-                    p->id, p->counter, p->temp);
 
-            printf("Sending it back.. ");
-            sendMsg(csock, p, sizeof(payload));
-        } */
-        for(int i=0; i<1000; i++)
+        // for(int i=0; i<1000; i++)
+        while(1)
         {
             payload p;
             p.id = i;
-            rp_AIpinGetValue(0, &p.input0);
-            rp_AIpinGetValue(1, &p.input1);
-            rp_AIpinGetValue(2, &p.input2);
-            rp_AIpinGetValue(3, &p.input3);
+            //rp_AIpinGetValue(0, &p.input0);
+            //rp_AIpinGetValue(1, &p.input1);
+            //rp_AIpinGetValue(2, &p.input2);
+            //rp_AIpinGetValue(3, &p.input3);
+            p.fast1 = acquireFastInput();
 
             sendMsg(csock, &p, sizeof(payload));
         }

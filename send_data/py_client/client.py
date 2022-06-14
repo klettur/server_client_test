@@ -10,6 +10,8 @@ import socket
 import sys
 import random
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 from ctypes import *
 
 
@@ -18,65 +20,101 @@ class Payload(Structure):
     _fields_ = [("id", c_uint),
                 ("input_0", c_float),
                 ("input_1", c_float),
-                ("input_2", c_float)
-                ("input_2", c_float)]
+                ("input_2", c_float),
+                ("input_3", c_float),
+                ("fast1", c_float)]
 
 
 def main():
-    server_addr = ('192.168.1.3', 2300)
+    # WLAN: 192.168.1.3
+    # wired: 10.42.0.72 or see RP in Browser
+    server_addr = ('10.42.0.72', 2300)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     bytecount = 0
+    packagecount = 0
     errorcount = 0
+    i = 0
+    j = 0
+
+    # turn on interactive mode for plot updating
+    plt.ion()
+
+    # prepare lists for buffers and plotting
+    plot_buffer_size = 20000                # size of the plotted data
+    plot_length = 100                        # how many times the values are read
+    plotdata0 = [0.0] * plot_buffer_size    # generate data list for plot
+    data_buffer_size = 200              # number of samples which are acquired before each plot update
+    data_buffer_0 = [0.0] * data_buffer_size# generate data buffer list
+
+    # plot data for first time, filled with zeros
+    x = list(range(0, plot_buffer_size))
+    y = plotdata0
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    line1, = ax.plot(x, y, 'b-')
+    time.sleep(1)
+
 
     try:
         s.connect(server_addr)
         print("Connected to {:s}".format(repr(server_addr)))
-        i = 0
-        start = time.time()
-        while i < 1000:
-            buff = s.recv(sizeof(Payload))
-            #print("test1")
+        connect_start = time.time()
 
-            try:
-            #print("test2")
-                payload_in = Payload.from_buffer_copy(buff)
-                bytecount = bytecount + sizeof(Payload)
-                # print("Value: {:f},".format(payload_in.data2))
-            except ValueError as ve:
-                errorcount = errorcount + 1
-            #print("Received D1={:d}, D2={:d}, D3={:d}, D4={:d},".format(payload_in.data1,
-                                                               #payload_in.data2,
-                                                               #payload_in.data3,
-                                                               #payload_in.data4))
-            i = payload_in.data1
-            #print(i)
+        while j < plot_length:
+            sample_start = time.time()
+            while i < data_buffer_size:
+                buff = s.recv(sizeof(Payload))
+                try:
+                    payload_in = Payload.from_buffer_copy(buff)
+                    bytecount = bytecount + sizeof(Payload)
+                    packagecount = packagecount + 1
+                    data_buffer_0[i] = payload_in.fast1
+                    # data1[i] = payload_in.input_1
+                    # data2[i] = payload_in.input_2
+                    # data3[i] = payload_in.input_3
+                except ValueError as ve:
+                    errorcount = errorcount + 1
+                    #print("oh no")
+                i = packagecount + errorcount
+                time.sleep(0.001)
+            sample_end = time.time()
+            # print("Sample time: ", sample_end - sample_start, "s")
+            plot_start = time.time()
+            # print("before update")
 
-        '''
-        for i in range(5):
-            print("")
-            payload_out = Payload(1, i, random.uniform(-10, 30))
-            print("Sending id={:d}, counter={:d}, temp={:f}".format(payload_out.id,
-                                                              payload_out.counter,
-                                                              payload_out.temp))
-            nsent = s.send(payload_out)
-            # Alternative: s.sendall(...): coontinues to send data until either
-            # all data has been sent or an error occurs. No return value.
-            print("Sent {:d} bytes".format(nsent))
+            # append the acquired data to the plotbuffer
+            # first remove the length of the data at the beginning of the plotbuffer
+            # so the plotbuffer stays the same size
+            plotdata0 = plotdata0[data_buffer_size:plot_buffer_size]
+            plotdata0.extend(data_buffer_0)
 
-            buff = s.recv(sizeof(Payload))
-            payload_in = Payload.from_buffer_copy(buff)
-            print("Received id={:d}, counter={:d}, temp={:f}".format(payload_in.id,
-                                                               payload_in.counter,
-                                                               payload_in.temp))
-        '''
+            # update the plot
+            line1.set_ydata(plotdata0)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            plot_end = time.time()
+
+            #print("Update time: ", plot_end-plot_start, "s")
+            #print("Sample time: ", sample_end-sample_start, "s")
+
+            # update loop variables
+            j = j + 1
+            i = 0
+            packagecount = 0
+            errorcount = 0
+
+
+
     except AttributeError as ae:
         print("Error creating the socket: {}".format(ae))
     except socket.error as se:
         print("Exception on socket: {}".format(se))
     finally:
-        end = time.time()
-        elapsed = end-start
-        print("Time for ", bytecount, " Byte: ", elapsed)
+        #print("i=", i)
+        connect_end = time.time()
+        elapsed = connect_end - connect_start
+        print("Time for", bytecount, "Byte: ", elapsed,"s, Speed:", (bytecount/elapsed)/1000, "kB/s" )
+        print(((bytecount/elapsed)/1000) / sizeof(Payload), "kilosamples per second")
         print("Errorcount: ", errorcount)
         print("Closing socket")
         s.close()
