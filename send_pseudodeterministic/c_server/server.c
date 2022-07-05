@@ -72,10 +72,10 @@ void sendMsg(int sock, void* msg, uint32_t msgsize)
     return;
 }
 
-float acquireFastInput()
+float acquireFastInput() // acquires data from fast input
 {
-    uint32_t buff_size = 1;
-    float *buff = (float *)malloc(buff_size * sizeof(float));
+    uint32_t buff_size = 1; // buffer for writing fast input data
+    float *buff = (float *)malloc(buff_size * sizeof(float)); // allocate buffer space, see RP docs example
 
     rp_AcqReset();
     rp_AcqSetDecimation(RP_DEC_65536);
@@ -83,7 +83,7 @@ float acquireFastInput()
     rp_AcqSetTriggerDelay(0);
 
     rp_AcqStart();
-    sleep(0.0001);
+    sleep(0.0001); // determine correct sleep time that the buffer can be read
 
     rp_AcqGetOldestDataV(RP_CH_1, &buff_size, buff);
     float value = buff[0];
@@ -93,7 +93,7 @@ float acquireFastInput()
     return value;
 }
 
-void startGenerator()
+void startGenerator() // start sine generator on output
 {
     rp_GenReset();
     rp_GenFreq(RP_CH_1, 0.5);
@@ -121,7 +121,7 @@ int main()
     ssock = createSocket(PORT);
     printf("Server listening on port %d\n", PORT);
     
-    startGenerator();
+    // startGenerator(); // start sine generator on output
 
     while (1)
     {
@@ -136,20 +136,20 @@ int main()
         bzero(buff, BUFFSIZE);
 	int sent = 0;
         // for(int i=0; i<1000; i++)
-        while(1)
+        while(1) // infinite loop possible when client closes the connection after a specific event
+            // e.g. a pre-determined number of samples was read or an input was performed
         {
-	    sleep(0.00001);
+	    //sleep(0.00001);
             payload p;
             //p.id = i;
-            //rp_AIpinGetValue(0, &p.input0);
-            //rp_AIpinGetValue(1, &p.input1);
-            //rp_AIpinGetValue(2, &p.input2);
-            //rp_AIpinGetValue(3, &p.input3);
-            p.fast1 = acquireFastInput();
+            rp_AIpinGetValue(0, &p.input0);
+            rp_AIpinGetValue(1, &p.input1);
+            rp_AIpinGetValue(2, &p.input2);
+            rp_AIpinGetValue(3, &p.input3);
+            // p.fast1 = acquireFastInput();
 
             sendMsg(csock, &p, sizeof(payload));
-            
-	}
+        }
 
         printf("Closing connection to client\n");
         printf("----------------------------\n");
