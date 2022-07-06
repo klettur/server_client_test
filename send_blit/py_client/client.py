@@ -10,8 +10,10 @@ import socket
 import sys
 import random
 import time
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('GTK3Agg') # was GTKAgg, nbAgg also not working
 import numpy as np
+from matplotlib import pyplot as plt
 from ctypes import *
 
 
@@ -46,22 +48,39 @@ def main():
 
     # prepare lists for buffers and plotting
     plot_buffer_size = 20000                    # size of the plotted data in one frame
-    plot_length = 100                           # how many times the values are read
+    plot_length = 200                           # how many times the values are read
     plotdata0 = [0.0] * plot_buffer_size        # generate data list for plot
     data_buffer_size = 200                      # number of samples which are acquired before each plot update
     data_buffer_0 = [0.0] * data_buffer_size    # generate data buffer list
 
     # plot data for first time, filled with zeros
     x = list(range(0, plot_buffer_size))
+    # print("xlen: ", len(x))
+
     y = plotdata0
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    line1, = ax.plot(x, y, 'b-')
+    # print("ylen: ", len(y))
+
+    # fig, ax = plt.subplots(1, 1)
+
+    fig, ax = plt.subplots()
+    (ln,)=ax.plot(x, y, animated=True)
+    plt.show(block=False)
+    plt.pause(0.1)
+    bg = fig.canvas.copy_from_bbox(fig.bbox)
+    ax.draw_artist(ln)
+    fig.canvas.blit(fig.bbox)
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    # line1, = ax.plot(x, y, 'b-')
+    # points = ax.plot(x,y, 'o')[0]
 
     time.sleep(1)
 
-    printcount = 0
+    printcount = 1
+    errorcount_all = 0
     printtime = 0
+    connect_start = 0
+    connect_end = 0
 
 
     try:
@@ -92,10 +111,21 @@ def main():
 
                 except ValueError as ve:
                     errorcount = errorcount + 1
+                    errorcount_all = errorcount_all + 1
                     print("Package error")
                 i = packagecount + errorcount
                 # time.sleep(0.001)
             sample_end = time.time_ns()
+
+            #if j == 1:
+              #  fig, ax = plt.subplots()
+               # (ln,)=ax.plot(x, y, animated=True)
+               # plt.show(block=False)
+              #  plt.pause(0.1)
+              #  bg = fig.canvas.copy_from_bbox(fig.bbox)
+              #  ax.draw_artist(ln)
+             #   fig.canvas.blit(fig.bbox)
+
             # print("Sample time: ", sample_end - sample_start, "s")
             plot_start = time.time_ns()
             # print("before update")
@@ -106,10 +136,19 @@ def main():
             plotdata0 = plotdata0[data_buffer_size:plot_buffer_size]
             plotdata0.extend(data_buffer_0)
 
+            # print("plotdata0 len: ", len(plotdata0))
+
             # update the plot
-            line1.set_ydata(plotdata0)
-            fig.canvas.draw()
+            fig.canvas.restore_region(bg)
+            ln.set_ydata(plotdata0)
+
+            ax.draw_artist(ln)
+            fig.canvas.blit(fig.bbox)
             fig.canvas.flush_events()
+
+            # line1.set_ydata(plotdata0)
+            # fig.canvas.draw()
+            # fig.canvas.flush_events()
             plot_end = time.time_ns()
 
             printcount = printcount + 1
@@ -138,7 +177,7 @@ def main():
         elapsed = connect_end - connect_start
         print("Time for", bytecount, "Byte: ", elapsed,"s, Speed:", (bytecount/elapsed)/1000, "kB/s" )
         print(((bytecount/elapsed)/1000) / sizeof(Payload), "kilosamples per second")
-        print("Errorcount: ", errorcount)
+        print("Errorcount: ", errorcount_all)
         print("Closing socket")
         s.close()
 
