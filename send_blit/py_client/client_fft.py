@@ -16,6 +16,11 @@ matplotlib.use('GTK3Agg')   # don't use conda for installing dependencies, it sc
 import numpy as np
 from matplotlib import pyplot as plt
 from ctypes import *
+from scipy.fft import fft, fftfreq
+
+from scipy.signal import filtfilt, iirnotch, freqz, butter, iircomb
+from scipy.fftpack import fft, fftshift, fftfreq
+
 
 
 # This class defines a C-like struct
@@ -44,6 +49,8 @@ def main():
     i = 0
     j = 0
 
+    fft_once = 0
+
     sample_time = 0.0001; # sample time in s, fs = 1/sample time 0.0001
     # this time needs to be increased if a deterministic error occurs
     # because this means that the sampling is too slow
@@ -51,7 +58,7 @@ def main():
     # it just slows down the sampling to a defined time
 
     # turn on interactive mode for plot updating
-    plt.ion()
+    # plt.ion()
 
     # prepare lists for buffers and plotting
     plot_buffer_size = 20000                    # size of the plotted data in one frame
@@ -71,15 +78,16 @@ def main():
     # create background and plot for the first time
     # see https://matplotlib.org/stable/tutorials/advanced/blitting.html
     # for more information
-    fig, ax = plt.subplots()
-    (ln,)=ax.plot(x, y, animated=True)
-    ax.set_adjustable('datalim')
-    plt.axis([0, plot_length*2, 0, 4])
-    plt.show(block=False)
-    plt.pause(0.1)
-    bg = fig.canvas.copy_from_bbox(fig.bbox)
-    ax.draw_artist(ln)
-    fig.canvas.blit(fig.bbox)
+    #plt.figure(1)
+    #fig, ax = plt.subplots()
+    #(ln,)=ax.plot(x, y, animated=True)
+    #ax.set_adjustable('datalim')
+    #plt.axis([0, plot_length*2, 0, 4])
+   # plt.show(block=False)
+    #plt.pause(0.1)
+   # bg = fig.canvas.copy_from_bbox(fig.bbox)
+   # ax.draw_artist(ln)
+   # fig.canvas.blit(fig.bbox)
 
     time.sleep(1)
 
@@ -128,34 +136,105 @@ def main():
                 # time.sleep(0.001)
             sample_end = time.time_ns()
 
-            #if j == 1:
-              #  fig, ax = plt.subplots()
-               # (ln,)=ax.plot(x, y, animated=True)
-               # plt.show(block=False)
-              #  plt.pause(0.1)
-              #  bg = fig.canvas.copy_from_bbox(fig.bbox)
-              #  ax.draw_artist(ln)
-             #   fig.canvas.blit(fig.bbox)
-
-            # print("Sample time: ", sample_end - sample_start, "s")
+            #
             plot_start = time.time_ns()
-            # print("before update")
 
-            # append the acquired data to the plotbuffer
-            # first remove the length of the data at the beginning of the plotbuffer
-            # so the plotbuffer stays the same size
             plotdata0 = plotdata0[data_buffer_size:plot_buffer_size]
             plotdata0.extend(data_buffer_0)
 
-            # print("plotdata0 len: ", len(plotdata0))
 
-            # update the plot
-            fig.canvas.restore_region(bg)
-            ln.set_ydata(plotdata0)
+            if j == 300: # plotdata0[0] != 0 and fft_once == 0:
+                N = 20000
+                fs = 2000
 
-            ax.draw_artist(ln)
-            fig.canvas.blit(fig.bbox)
-            fig.canvas.flush_events()
+                yf = fft(plotdata0)
+                xf = fftfreq(N, 1 / fs)
+
+                plt.plot(xf, np.abs(yf))
+                print("before show")
+                plt.show()
+                print("fig 1 done")
+#------------------------------------
+                # iirnotch
+
+                #f0 = 52.4
+                ## fs = 1/sample_time
+                ## fs = 2500
+                #w0 = f0/(fs/2)
+                #Q = 10
+                #b, a = iirnotch(w0, Q)
+
+                #filtered1 = filtfilt(b, a, plotdata0)
+
+                ## another time with 100Hz for first harmonics
+
+                #f0 = 104.8
+                ## fs = 1/sample_time
+                ## fs = 2500
+                #w0 = f0/(fs/2)
+                #Q = 10
+                #b, a = iirnotch(w0, Q)
+
+                #filtered = filtfilt(b, a, filtered1)
+
+                #yf = fft(filtered)
+                #xf = fftfreq(N, 1 / fs)
+                #plt.plot(xf, np.abs(yf))
+                #plt.show()
+#-------------------------------------
+                # iircomb
+                f0 = 52
+                # fs = 1/sample_time
+                # fs = 2500
+                w0 = f0/(fs/2)
+                Q = 5
+                b, a = iircomb(w0, Q)
+
+                filtered = filtfilt(b, a, plotdata0)
+
+                yf = fft(filtered)
+                xf = fftfreq(N, 1 / fs)
+                plt.plot(xf, np.abs(yf))
+                plt.show()
+
+#-----------------------------------------
+                ## low pass
+                #f0 = 50
+                ## fs = 1/sample_time
+                ## fs = 2500
+                #fs = 2000
+                #w0 = f0/(fs/2)
+                #b,a = butter(10, 120/(fs/2))
+                #filtered2 = filtfilt(b, a, filtered)
+                #yf = fft(filtered1)
+                #xf = fftfreq(N, 1 / fs)
+                #plt.plot(xf, np.abs(yf))
+                #plt.show()
+
+
+                fft_once = 1
+                #print("fft done")
+                #time.sleep(20)
+                # sampling rate
+                #sr = 2000
+                ## sampling interval
+                #ts = 1.0/sr
+                #t = np.arange(0,1,ts)
+
+                #freq = 1.
+                #x = 3*np.sin(2*np.pi*freq*t)
+
+                #freq = 4
+                #x += np.sin(2*np.pi*freq*t)
+
+                #freq = 7
+                #x += 0.5* np.sin(2*np.pi*freq*t)
+
+                #plt.figure(figsize = (8, 6))
+                #plt.plot(t, x, 'r')
+                #plt.ylabel('Amplitude')
+
+                #plt.show()
 
             # line1.set_ydata(plotdata0)
             # fig.canvas.draw()

@@ -1,3 +1,4 @@
+
 /* server.c */
 
 #include <sys/socket.h>
@@ -7,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #pragma pack(1)
 
@@ -14,7 +16,7 @@
 
 typedef struct payload_t {
     float id;
-    float input0;
+    float input0[200];
     float input1;
     float input2;
     float input3;
@@ -72,18 +74,18 @@ void sendMsg(int sock, void* msg, uint32_t msgsize)
     return;
 }
 
-float acquireFastInput() // acquires data from fast input
+float acquireFastInput(int channel) // acquires data from fast input
 {
     uint32_t buff_size = 1; // buffer for writing fast input data
     float *buff = (float *)malloc(buff_size * sizeof(float)); // allocate buffer space, see RP docs example
 
     rp_AcqReset();
-    rp_AcqSetDecimation(RP_DEC_65536);
-    rp_AcqSetTriggerLevel(1, 0); //Trig level is set in Volts while in SCPI
+    rp_AcqSetDecimation(RP_DEC_8);
+    rp_AcqSetTriggerLevel(channel, 0); //Trig level is set in Volts while in SCPI
     rp_AcqSetTriggerDelay(0);
 
     rp_AcqStart();
-    sleep(0.0001); // determine correct sleep time that the buffer can be read
+    sleep(0.00001); // determine correct sleep time that the buffer can be read
 
     rp_AcqGetOldestDataV(RP_CH_1, &buff_size, buff);
     float value = buff[0];
@@ -112,6 +114,13 @@ int main()
     struct sockaddr_in client;
     int clilen = sizeof(client);
 
+    clock_t start_t, end_t;
+    double total_t;
+
+    float fast2;
+    clock_t start, end;
+    double cpu_time_used;
+
     // Initialization of API
     if (rp_Init() != RP_OK) {
         fprintf(stderr, "Red Pitaya API init failed!\n");
@@ -120,7 +129,7 @@ int main()
 
     ssock = createSocket(PORT);
     printf("Server listening on port %d\n", PORT);
-    
+
     // startGenerator(); // start sine generator on output
 
     while (1)
@@ -134,21 +143,38 @@ int main()
 
         printf("Accepted connection from %s\n", inet_ntoa(client.sin_addr));
         bzero(buff, BUFFSIZE);
-        int sent = 0;
+	int sent = 0;
         // for(int i=0; i<1000; i++)
         while(1) // infinite loop possible when client closes the connection after a specific event
             // e.g. a pre-determined number of samples was read or an input was performed
         {
 	    //sleep(0.00001);
+	    start_t = clock();
             payload p;
             //p.id = i;
-            rp_AIpinGetValue(0, &p.input0);
-            rp_AIpinGetValue(1, &p.input1);
-            rp_AIpinGetValue(2, &p.input2);
-            rp_AIpinGetValue(3, &p.input3);
-            // p.fast1 = acquireFastInput();
-
+	    //start = clock();
+	    for( int i = 0; i < 200; i++)
+	    {
+		start_t = clock();
+	        rp_AIpinGetValue(0, &p.input0[i]);
+		while(clock() < start_t + 496){}
+	    }
+            //rp_AIpinGetValue(0, &p.input0);
+            //rp_AIpinGetValue(1, &p.input1);
+            //rp_AIpinGetValue(2, &p.input2);
+            //rp_AIpinGetValue(3, &p.input3);
+	    // printf("Cpu time used: %f \n", cpu_time_used);
+	    // printf("Value of input0: %1.2fV\n", p.input0);
+            //p.fast1 = acquireFastInput(1);
+	    //fast2 = acquireFastInput(2);
+	    //printf("clocks per sec: %d \n", CLOCKS_PER_SEC);
+	    //cpu_time_used = ((double) (end-start)) / CLOCKS_PER_SEC;
+	    //start_t = clock();
             sendMsg(csock, &p, sizeof(payload));
+	    //while(clock() < start_t + 999){}
+	    //end_t = clock();
+	    //total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+	    //printf("Time taken by CPU: %f\n", total_t);
         }
 
         printf("Closing connection to client\n");

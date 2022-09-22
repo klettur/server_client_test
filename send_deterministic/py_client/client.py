@@ -22,7 +22,7 @@ from ctypes import *
 # used for getting the received payload from the c-server
 class Payload(Structure):
     _fields_ = [("id", c_uint),
-                ("input_0", c_float),
+                ("input_0", c_float * 200),
                 ("input_1", c_float),
                 ("input_2", c_float),
                 ("input_3", c_float),
@@ -97,34 +97,48 @@ def main():
 
         while j < plot_length:
             sample_start = time.time_ns()
-            while i < data_buffer_size:
 
-                buff = s.recv(sizeof(Payload))
-                try:
-                    sample_start_time = time.time_ns()
-                    payload_in = Payload.from_buffer_copy(buff) # get data of payload
-                    bytecount = bytecount + sizeof(Payload) # add up the total bytes sent
-                    packagecount = packagecount + 1 # count packages sent
-                    data_buffer_0[i] = payload_in.input_0
+            buff = s.recv(sizeof(Payload))
+
+            try:
+                payload_in = Payload.from_buffer_copy(buff) # get data of payload
+                bytecount = bytecount + sizeof(Payload) # add up the total bytes sent
+                packagecount = packagecount + 1 # count packages sent
+                data_buffer_0 = payload_in.input_0
+
+            except ValueError as ve:
+                errorcount = errorcount + 1
+                errorcount_all = errorcount_all + 1
+                print("Package error")
+
+
+            #while i < data_buffer_size:
+                                # buff = s.recv(sizeof(Payload))
+                #try:
+                    #sample_start_time = time.time_ns()
+                    #payload_in = Payload.from_buffer_copy(buff) # get data of payload
+                    #bytecount = bytecount + sizeof(Payload) # add up the total bytes sent
+                    #packagecount = packagecount + 1 # count packages sent
+                    #data_buffer_0[i] = payload_in.input_0[i]
                     # data_buffer_1[i] = payload_in.input_1
                     # data_buffer_2[i] = payload_in.input_2
                     # data_buffer_3[i] = payload_in.input_3
 
                     # wait until sampling time is over
-                    if (sample_time*1000000000 - (time.time_ns() - sample_start_time)) >= 0:
-                        time.sleep(sample_time - ((time.time_ns() - sample_start_time) / 1000000000))
-                    else:
+                    # if (sample_time*1000000000 - (time.time_ns() - sample_start_time)) >= 0:
+                    #    time.sleep(sample_time - ((time.time_ns() - sample_start_time) / 1000000000))
+                    #else:
                         # if sampling takes longer than sample time
-                        print("Deterministic error, sampling too slow")
+                    #    print("Deterministic error, sampling too slow")
 
                     # sample_end = time.time_ns()-sample_start_time
                     # print("Sample time: ", sample_end)
 
-                except ValueError as ve:
-                    errorcount = errorcount + 1
-                    errorcount_all = errorcount_all + 1
-                    print("Package error")
-                i = packagecount + errorcount
+                #except ValueError as ve:
+                    #errorcount = errorcount + 1
+                    #errorcount_all = errorcount_all + 1
+                    #print("Package error")
+                #i = packagecount + errorcount
                 # time.sleep(0.001)
             sample_end = time.time_ns()
 
@@ -187,7 +201,7 @@ def main():
         connect_end = time.time()
         elapsed = connect_end - connect_start
         print("Time for", bytecount, "Byte: ", elapsed,"s, Speed:", (bytecount/elapsed)/1000, "kB/s" )
-        print(((bytecount/elapsed)/1000) / sizeof(Payload), "kilosamples per second")
+        print((200 * (bytecount/elapsed)/1000) / sizeof(Payload), "kilosamples per second")
         print("Errorcount: ", errorcount_all)
         print("Closing socket")
         s.close()

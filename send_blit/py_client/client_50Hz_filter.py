@@ -17,6 +17,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from ctypes import *
 
+from scipy.signal import filtfilt, iirnotch, freqz, butter, iircomb
+from scipy.fftpack import fft, fftshift, fftfreq
 
 # This class defines a C-like struct
 # used for getting the received payload from the c-server
@@ -55,7 +57,7 @@ def main():
 
     # prepare lists for buffers and plotting
     plot_buffer_size = 20000                    # size of the plotted data in one frame
-    plot_length = 10000                           # how many times the values are read
+    plot_length = 1000                          # how many times the values are read
     plotdata0 = [0.0] * plot_buffer_size        # generate data list for plot
     data_buffer_size = 200                      # number of samples which are acquired before each plot update
     data_buffer_0 = [0.0] * data_buffer_size    # generate data buffer list
@@ -73,8 +75,7 @@ def main():
     # for more information
     fig, ax = plt.subplots()
     (ln,)=ax.plot(x, y, animated=True)
-    ax.set_adjustable('datalim')
-    plt.axis([0, plot_length*2, 0, 4])
+    plt.axis([0, plot_buffer_size*2, 0, 4])
     plt.show(block=False)
     plt.pause(0.1)
     bg = fig.canvas.copy_from_bbox(fig.bbox)
@@ -106,6 +107,11 @@ def main():
                     bytecount = bytecount + sizeof(Payload) # add up the total bytes sent
                     packagecount = packagecount + 1 # count packages sent
                     data_buffer_0[i] = payload_in.input_0
+
+                    # stupid filter
+                    # if data_buffer_0[i] > 2.5 or data_buffer_0[i] < 0.3:
+                    #     data_buffer_0[i] = 1.8
+
                     # data_buffer_1[i] = payload_in.input_1
                     # data_buffer_2[i] = payload_in.input_2
                     # data_buffer_3[i] = payload_in.input_3
@@ -141,17 +147,58 @@ def main():
             plot_start = time.time_ns()
             # print("before update")
 
+
+
+
             # append the acquired data to the plotbuffer
             # first remove the length of the data at the beginning of the plotbuffer
             # so the plotbuffer stays the same size
             plotdata0 = plotdata0[data_buffer_size:plot_buffer_size]
+            # plotdata0.extend(data_buffer_0)
             plotdata0.extend(data_buffer_0)
+
+            # filter test
+            N = 1000
+            fs = 2000
+
+            yf = fft(plotdata0[0:1000])
+            xf = fftfreq(N, 1 / fs)
+
+            #plt.plot(xf, np.abs(yf))
+            #print("before show")
+            #plt.show()
+            #print("fig 1 done")
+#------------------------------------
+            # iirnotch
+
+            f0 = 52.4
+            # fs = 1/sample_time
+            # fs = 2500
+            w0 = f0/(fs/2)
+            Q = 10
+            b, a = iirnotch(w0, Q)
+
+            filtered1 = filtfilt(b, a, plotdata0)
+
+            # another time with 100Hz for first harmonics
+
+            f0 = 104.8
+            # fs = 1/sample_time
+            # fs = 2500
+            w0 = f0/(fs/2)
+            Q = 10
+            b, a = iirnotch(w0, Q)
+
+            filtered = filtfilt(b, a, filtered1)
+
+
+
 
             # print("plotdata0 len: ", len(plotdata0))
 
             # update the plot
             fig.canvas.restore_region(bg)
-            ln.set_ydata(plotdata0)
+            ln.set_ydata(filtered)
 
             ax.draw_artist(ln)
             fig.canvas.blit(fig.bbox)
